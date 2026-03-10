@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 // ============================================================
 // 🔧 הגדרות EmailJS — החלף את שלושת הערכים האלה בלבד!
 // ============================================================
-const EMAILJS_SERVICE_ID  = "moore2026!";   // ← מ-Email Services
-const EMAILJS_TEMPLATE_ID = "template_e8nu0ve";  // ← מ-Email Templates
-const EMAILJS_PUBLIC_KEY  = "MStQyUFQG4G9wZge_"; // ← מ-Account > General
+const EMAILJS_SERVICE_ID  = "service_XXXXXXX";   // ← מ-Email Services
+const EMAILJS_TEMPLATE_ID = "template_XXXXXXX";  // ← מ-Email Templates
+const EMAILJS_PUBLIC_KEY  = "XXXXXXXXXXXXXXXXXXXX"; // ← מ-Account > General
 // ============================================================
 
 // טוען את ספריית EmailJS מה-CDN
@@ -260,13 +260,13 @@ export default function App() {
       {/* LOGIN SCREEN */}
       {view === "login" && (
         <div style={{
-          minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center",
+          minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: "20px",
           position: "relative", zIndex: 1,
         }}>
           <div style={{
-            background: "#fff", borderRadius: 28, padding: "44px 40px",
+            background: "#fff", borderRadius: 28, padding: "clamp(24px, 5vw, 44px) clamp(20px, 5vw, 40px)",
             boxShadow: "0 8px 60px rgba(255,140,60,0.13)",
-            width: "100%", maxWidth: 420, textAlign: "center",
+            width: "100%", maxWidth: 520, textAlign: "center",
           }}>
             <div style={{ fontSize: 64, marginBottom: 8 }}>👴👵</div>
             <h1 style={{
@@ -294,9 +294,6 @@ export default function App() {
                 <button onClick={handleCodeSubmit} style={btnPrimary}>
                   כניסה ←
                 </button>
-                <p style={{ fontSize: 12, color: "#bbb", marginTop: 16 }}>
-                  קוד לדוגמה: <code style={{ background: "#f5f5f5", padding: "2px 8px", borderRadius: 6 }}>mishpacha2024</code>
-                </p>
               </div>
             )}
 
@@ -357,7 +354,7 @@ export default function App() {
 
       {/* CALENDAR VIEW */}
       {view === "calendar" && (
-        <div style={{ position: "relative", zIndex: 1, padding: "20px 16px", maxWidth: 900, margin: "0 auto" }}>
+        <div style={{ position: "relative", zIndex: 1, padding: "20px 16px", maxWidth: 1200, margin: "0 auto" }}>
           {/* Header */}
           <div style={{
             display: "flex", alignItems: "center", justifyContent: "space-between",
@@ -390,7 +387,7 @@ export default function App() {
 
           <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
             {/* Calendar */}
-            <div style={{ flex: "1 1 500px" }}>
+            <div style={{ flex: "1 1 620px" }}>
               <div style={{
                 background: "#fff", borderRadius: 24,
                 boxShadow: "0 4px 30px rgba(255,140,60,0.1)", overflow: "hidden",
