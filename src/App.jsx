@@ -1,12 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
-import { HDate, months, HebrewCalendar, Locale } from "@hebcal/core";
+import { HDate, months } from "@hebcal/core";
+import { db, saveVisits, saveMembers, subscribeToVisits, subscribeToMembers } from "./firebase";
 
 // ============================================================
 // 🔧 הגדרות EmailJS — החלף את שלושת הערכים האלה בלבד!
 // ============================================================
-const EMAILJS_SERVICE_ID  = "moore2026!";
-const EMAILJS_TEMPLATE_ID = "template_e8nu0ve";
-const EMAILJS_PUBLIC_KEY  = "MStQyUFQG4G9wZge_";// ============================================================
+const EMAILJS_SERVICE_ID  = "service_XXXXXXX";
+const EMAILJS_TEMPLATE_ID = "template_XXXXXXX";
+const EMAILJS_PUBLIC_KEY  = "XXXXXXXXXXXXXXXXXXXX";
+// ============================================================
 
 const FAMILY_CODE = "mishpacha2024";
 
@@ -21,48 +23,49 @@ const COLORS = [
   { bg: "#FF8B94", light: "#FFE8EA" },
 ];
 
-const HEBREW_DAYS_SHORT = ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
+const HEBREW_MONTHS_NAMES = {
+  [months.NISAN]: "ניסן", [months.IYAR]: "אייר", [months.SIVAN]: "סיוון",
+  [months.TAMUZ]: "תמוז", [months.AV]: "אב", [months.ELUL]: "אלול",
+  [months.TISHREI]: "תשרי", [months.CHESHVAN]: "חשוון", [months.KISLEV]: "כסלו",
+  [months.TEVET]: "טבת", [months.SHVAT]: "שבט", [months.ADAR_I]: "אדר א׳", [months.ADAR_II]: "אדר ב׳",
+};
 const GREG_MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
-
+const HEBREW_DAYS_SHORT = ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
 const REMINDER_TIMES = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
   const m = i % 2 === 0 ? "00" : "30";
   return `${h}:${m}`;
 });
 
-// שמות חודשים עבריים
-const HEB_MONTH_NAMES = {
-  [months.NISAN]:     "ניסן",
-  [months.IYAR]:      "אייר",
-  [months.SIVAN]:     "סיוון",
-  [months.TAMUZ]:     "תמוז",
-  [months.AV]:        "אב",
-  [months.ELUL]:      "אלול",
-  [months.TISHREI]:   "תשרי",
-  [months.CHESHVAN]:  "חשוון",
-  [months.KISLEV]:    "כסלו",
-  [months.TEVET]:     "טבת",
-  [months.SHVAT]:     "שבט",
-  [months.ADAR_I]:    "אדר א׳",
-  [months.ADAR_II]:   "אדר ב׳",
-};
-
-// המרת מספר לאותיות עבריות
 function numToHebrew(n) {
-  const ones = ["","א","ב","ג","ד","ה","ו","ז","ח","ט","י",
-    "יא","יב","יג","יד","טו","טז","יז","יח","יט","כ",
-    "כא","כב","כג","כד","כה","כו","כז","כח","כט","ל"];
-  if (n <= 30) return ones[n];
-  return n.toString();
+  const ones = ["","א","ב","ג","ד","ה","ו","ז","ח","ט","י","יא","יב","יג","יד","טו","טז","יז","יח","יט","כ","כא","כב","כג","כד","כה","כו","כז","כח","כט","ל"];
+  return n <= 30 ? ones[n] : n.toString();
 }
 
-// מחזיר HDate של היום
-function hToday() { return new HDate(); }
+function getMonthOrder(hYear) {
+  const base = [months.TISHREI, months.CHESHVAN, months.KISLEV, months.TEVET, months.SHVAT];
+  if (HDate.isLeapYear(hYear)) base.push(months.ADAR_I, months.ADAR_II);
+  return [...base, months.NISAN, months.IYAR, months.SIVAN, months.TAMUZ, months.AV, months.ELUL];
+}
 
-// מחזיר את כל ימי החודש העברי כ-array של {hDate, gDate, dayOfWeek}
+function nextHMonth(hMonth, hYear) {
+  const order = getMonthOrder(hYear);
+  const idx = order.indexOf(hMonth);
+  if (idx < order.length - 1) return { hMonth: order[idx+1], hYear };
+  return { hMonth: getMonthOrder(hYear+1)[0], hYear: hYear+1 };
+}
+
+function prevHMonth(hMonth, hYear) {
+  const order = getMonthOrder(hYear);
+  const idx = order.indexOf(hMonth);
+  if (idx > 0) return { hMonth: order[idx-1], hYear };
+  const prevOrder = getMonthOrder(hYear-1);
+  return { hMonth: prevOrder[prevOrder.length-1], hYear: hYear-1 };
+}
+
 function getHebrewMonthDays(hYear, hMonth) {
-  const daysInMonth = HDate.daysInMonth(hMonth, hYear);
   const days = [];
+  const daysInMonth = HDate.daysInMonth(hMonth, hYear);
   for (let d = 1; d <= daysInMonth; d++) {
     const hd = new HDate(d, hMonth, hYear);
     const gDate = hd.greg();
@@ -71,7 +74,6 @@ function getHebrewMonthDays(hYear, hMonth) {
   return days;
 }
 
-// מפתח ייחודי לתאריך גרגוריאני
 function gKey(gDate) {
   return `${gDate.getFullYear()}-${String(gDate.getMonth()+1).padStart(2,'0')}-${String(gDate.getDate()).padStart(2,'0')}`;
 }
@@ -81,51 +83,9 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
-// מחזיר את שם החודש העברי + שנה
-function hMonthLabel(hMonth, hYear) {
-  return `${HEB_MONTH_NAMES[hMonth] || hMonth} ${HDate.hebrew2abs ? "" : ""}תש${hebrewYear(hYear)}`;
-}
-
-function hebrewYear(y) {
-  // מחזיר את השנה בקיצור עברי, למשל תשפ"ה
-  try {
-    return new HDate(1, months.TISHREI, y).renderGematriya ? 
-      new HDate(1, months.TISHREI, y).renderGematriya() : y.toString();
-  } catch { return y.toString(); }
-}
-
-// מעביר לחודש הבא/קודם בלוח העברי
-function nextHebrewMonth(hMonth, hYear) {
-  const daysInYear = HDate.isLeapYear(hYear) ? 13 : 12;
-  const monthOrder = getMonthOrder(hYear);
-  const idx = monthOrder.indexOf(hMonth);
-  if (idx < monthOrder.length - 1) return { hMonth: monthOrder[idx+1], hYear };
-  return { hMonth: monthOrder[0], hYear: hYear + 1 };
-}
-
-function prevHebrewMonth(hMonth, hYear) {
-  const monthOrder = getMonthOrder(hYear);
-  const prevYearOrder = getMonthOrder(hYear - 1);
-  const idx = monthOrder.indexOf(hMonth);
-  if (idx > 0) return { hMonth: monthOrder[idx-1], hYear };
-  return { hMonth: prevYearOrder[prevYearOrder.length-1], hYear: hYear - 1 };
-}
-
-function getMonthOrder(hYear) {
-  if (HDate.isLeapYear(hYear)) {
-    return [months.TISHREI, months.CHESHVAN, months.KISLEV, months.TEVET, months.SHVAT,
-      months.ADAR_I, months.ADAR_II, months.NISAN, months.IYAR, months.SIVAN,
-      months.TAMUZ, months.AV, months.ELUL];
-  }
-  return [months.TISHREI, months.CHESHVAN, months.KISLEV, months.TEVET, months.SHVAT,
-    months.NISAN, months.IYAR, months.SIVAN, months.TAMUZ, months.AV, months.ELUL];
-}
-
 function buildGoogleCalendarLink(gDate) {
   const pad = n => String(n).padStart(2, "0");
-  const y = gDate.getFullYear();
-  const m = pad(gDate.getMonth()+1);
-  const d = pad(gDate.getDate());
+  const y = gDate.getFullYear(), m = pad(gDate.getMonth()+1), d = pad(gDate.getDate());
   const ds = `${y}${m}${d}`;
   const title = encodeURIComponent("ביקור אצל סבא וסבתא 💛");
   return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${ds}/${ds}&sf=true&output=xml`;
@@ -144,6 +104,7 @@ async function sendEmailReminder(member, dateStr) {
     await window.emailjs.send(EMAILJS_SERVICE_ID, EMAILJS_TEMPLATE_ID, {
       to_email: member.email, to_name: member.name, visit_date: dateStr, app_link: window.location.href,
     });
+    console.log("✅ מייל נשלח ל-" + member.name);
   } catch (err) { console.error("שגיאה:", err); }
 }
 
@@ -153,6 +114,7 @@ function checkAndSendReminders(visits, members) {
   const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate()+1);
   const tomorrowStr = `${tomorrow.getFullYear()}-${String(tomorrow.getMonth()+1).padStart(2,'0')}-${String(tomorrow.getDate()).padStart(2,'0')}`;
   const currentTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`;
+
   Object.entries(visits).forEach(([dk, visitors]) => {
     visitors.forEach(visitor => {
       const member = members.find(m => m.id === visitor.id);
@@ -198,13 +160,16 @@ function CharediGrandparents({ size = 140 }) {
 }
 
 export default function App() {
-  const todayHDate = hToday();
+  const todayHDate = new HDate();
   const [view, setView] = useState("welcome");
-  const [currentUser, setCurrentUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(() => {
+    try { return JSON.parse(localStorage.getItem("gp_currentUser") || "null"); } catch { return null; }
+  });
   const [hYear, setHYear] = useState(todayHDate.getFullYear());
   const [hMonth, setHMonth] = useState(todayHDate.getMonth());
-  const [visits, setVisits] = useState(() => { try { return JSON.parse(localStorage.getItem("gp_visits") || "{}"); } catch { return {}; } });
-  const [members, setMembers] = useState(() => { try { return JSON.parse(localStorage.getItem("gp_members") || "[]"); } catch { return []; } });
+  const [visits, setVisits] = useState({});
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [regForm, setRegForm] = useState({ name: "", email: "", reminder: "same_day", reminderTime: "09:00", color: 0 });
   const [loginName, setLoginName] = useState("");
   const [loginError, setLoginError] = useState("");
@@ -216,94 +181,114 @@ export default function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [toast, setToast] = useState(null);
 
+  // האזן ל-Firebase בזמן אמת
   useEffect(() => {
-    if (members.length > 0 && Object.keys(visits).length > 0)
-      setTimeout(() => checkAndSendReminders(visits, members), 2000);
-  }, []); // eslint-disable-line
+    const unsubVisits = subscribeToVisits(v => { setVisits(v); setLoading(false); });
+    const unsubMembers = subscribeToMembers(m => setMembers(m));
+    return () => { unsubVisits(); unsubMembers(); };
+  }, []);
 
-  useEffect(() => { try { localStorage.setItem("gp_visits", JSON.stringify(visits)); } catch {} }, [visits]);
-  useEffect(() => { try { localStorage.setItem("gp_members", JSON.stringify(members)); } catch {} }, [members]);
+  // אם כבר מחובר — עבור ישירות ללוח
+  useEffect(() => {
+    if (currentUser) setView("calendar");
+  }, []);
 
-  const monthDays = useMemo(() => getHebrewMonthDays(hYear, hMonth), [hYear, hMonth]);
-  const firstDow = monthDays[0]?.dow ?? 0;
-  const todayKey = todayStr();
-
-  // ביקורים קרובים
-  const upcoming = Object.entries(visits)
-    .filter(([k]) => k >= todayKey)
-    .sort(([a],[b]) => a.localeCompare(b))
-    .slice(0, 8);
-
-  // שם חודש + שנה
-  const monthLabel = useMemo(() => {
-    const name = HEB_MONTH_NAMES[hMonth] || "";
-    try {
-      const hd = new HDate(1, hMonth, hYear);
-      const gd = hd.greg();
-      const gLabel = `${GREG_MONTHS[gd.getMonth()]} ${gd.getFullYear()}`;
-      return `${name} ${hYear} | ${gLabel}`;
-    } catch { return name; }
-  }, [hMonth, hYear]);
+  // שלח תזכורות בטעינה
+  useEffect(() => {
+    if (members.length > 0 && Object.keys(visits).length > 0) {
+      setTimeout(() => checkAndSendReminders(visits, members), 3000);
+    }
+  }, [members, visits]); // eslint-disable-line
 
   function showToast(msg, type = "success") {
     setToast({ msg, type });
     setTimeout(() => setToast(null), 3200);
   }
 
-  function goNextMonth() { const n = nextHebrewMonth(hMonth, hYear); setHMonth(n.hMonth); setHYear(n.hYear); }
-  function goPrevMonth() { const p = prevHebrewMonth(hMonth, hYear); setHMonth(p.hMonth); setHYear(p.hYear); }
-
   function handleCodeSubmit() {
     if (codeInput.trim() === FAMILY_CODE) { setCodeOk(true); setCodeError(""); }
     else setCodeError("קוד שגוי, נסה שוב 🙈");
   }
 
-  function handleRegister() {
+  async function handleRegister() {
     if (!regForm.name.trim()) return;
     if (members.find(m => m.name === regForm.name.trim())) {
       setLoginError("השם הזה כבר קיים — נסה להתחבר");
       setView("login"); return;
     }
-    const newMember = { id: Date.now(), name: regForm.name.trim(), email: regForm.email.trim(), reminder: regForm.reminder, reminderTime: regForm.reminderTime, colorIdx: regForm.color };
-    setMembers(prev => [...prev, newMember]);
+    const newMember = {
+      id: Date.now(), name: regForm.name.trim(), email: regForm.email.trim(),
+      reminder: regForm.reminder, reminderTime: regForm.reminderTime, colorIdx: regForm.color,
+    };
+    const updatedMembers = [...members, newMember];
+    await saveMembers(updatedMembers);
     setCurrentUser(newMember);
+    localStorage.setItem("gp_currentUser", JSON.stringify(newMember));
     setView("calendar");
     showToast(`שלום ${newMember.name}! נרשמת בהצלחה 🎉`);
   }
 
   function handleLogin() {
     const found = members.find(m => m.name === loginName.trim());
-    if (found) { setCurrentUser(found); setView("calendar"); showToast(`ברוך הבא חזרה, ${found.name}! 👋`); }
-    else setLoginError("לא מצאנו אותך — אולי עוד לא נרשמת?");
+    if (found) {
+      setCurrentUser(found);
+      localStorage.setItem("gp_currentUser", JSON.stringify(found));
+      setView("calendar");
+      showToast(`ברוך הבא חזרה, ${found.name}! 👋`);
+    } else {
+      setLoginError("לא מצאנו אותך — אולי עוד לא נרשמת?");
+    }
   }
 
-  function saveSettings(updated) {
-    setMembers(prev => prev.map(m => m.id === currentUser.id ? { ...m, ...updated } : m));
-    setCurrentUser(prev => ({ ...prev, ...updated }));
+  async function saveSettings(updated) {
+    const updatedMembers = members.map(m => m.id === currentUser.id ? { ...m, ...updated } : m);
+    await saveMembers(updatedMembers);
+    const updatedUser = { ...currentUser, ...updated };
+    setCurrentUser(updatedUser);
+    localStorage.setItem("gp_currentUser", JSON.stringify(updatedUser));
     setShowSettings(false);
     showToast("ההגדרות נשמרו ✅");
   }
 
   function handleDayClick(dayObj) {
     const key = gKey(dayObj.gDate);
-    if (key < todayKey) return;
+    if (key < todayStr()) return;
     setSelectedDay({ ...dayObj, key });
     setShowDayModal(true);
   }
 
-  function toggleVisit(key) {
-    setVisits(prev => {
-      const existing = prev[key] || [];
-      const alreadyIn = existing.find(v => v.id === currentUser.id);
-      if (alreadyIn) {
-        const updated = existing.filter(v => v.id !== currentUser.id);
-        showToast("הסרת את הביקור שלך 🗓️", "info");
-        if (!updated.length) { const { [key]: _, ...rest } = prev; return rest; }
-        return { ...prev, [key]: updated };
-      }
+  async function toggleVisit(key) {
+    const existing = visits[key] || [];
+    const alreadyIn = existing.find(v => v.id === currentUser.id);
+    let updatedVisits;
+    if (alreadyIn) {
+      const updated = existing.filter(v => v.id !== currentUser.id);
+      updatedVisits = { ...visits };
+      if (!updated.length) delete updatedVisits[key];
+      else updatedVisits[key] = updated;
+      showToast("הסרת את הביקור שלך 🗓️", "info");
+    } else {
+      updatedVisits = { ...visits, [key]: [...existing, { id: currentUser.id, name: currentUser.name, colorIdx: currentUser.colorIdx }] };
       showToast("נרשמת לביקור! סבא וסבתא יהיו שמחים 💛");
-      return { ...prev, [key]: [...existing, { id: currentUser.id, name: currentUser.name, colorIdx: currentUser.colorIdx }] };
-    });
+    }
+    await saveVisits(updatedVisits);
+    setShowDayModal(false);
+  }
+
+  const monthDays = useMemo(() => getHebrewMonthDays(hYear, hMonth), [hYear, hMonth]);
+  const firstDow = monthDays[0]?.dow ?? 0;
+  const todayKey = todayStr();
+  const upcoming = Object.entries(visits).filter(([k]) => k >= todayKey).sort(([a],[b]) => a.localeCompare(b)).slice(0, 8);
+
+  if (loading && view !== "welcome" && view !== "register" && view !== "login") {
+    return (
+      <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", background: "#FFF8F0" }}>
+        <div style={{ textAlign: "center" }}>
+          <div style={{ fontSize: 48, marginBottom: 16 }}>⏳</div>
+          <p style={{ color: "#FF8C42", fontWeight: 700, fontSize: 18 }}>טוען נתונים...</p>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -417,37 +402,28 @@ export default function App() {
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               <button onClick={() => setShowSettings(true)} style={btnOutline}>⚙️ ההגדרות שלי</button>
               <button onClick={() => setView("members")} style={btnOutlineOrange}>👨‍👩‍👧‍👦 המשפחה</button>
-              <button onClick={() => { setView("welcome"); setCodeOk(false); setCodeInput(""); }} style={btnOutline}>יציאה</button>
+              <button onClick={() => { setCurrentUser(null); localStorage.removeItem("gp_currentUser"); setView("welcome"); setCodeOk(false); setCodeInput(""); }} style={btnOutline}>יציאה</button>
             </div>
           </div>
 
           <div style={{ display: "flex", gap: 24, alignItems: "flex-start", flexWrap: "wrap" }}>
-            {/* Calendar */}
             <div style={{ flex: "1 1 680px" }}>
               <div style={{ background: "#fff", borderRadius: 24, boxShadow: "0 4px 30px rgba(255,140,60,0.10)", overflow: "hidden" }}>
-                {/* Month header */}
                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "20px 28px", background: "linear-gradient(135deg, #FF8C42, #FF6B35)" }}>
-                  <button onClick={goPrevMonth} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 40, height: 40, cursor: "pointer", color: "#fff", fontSize: 22 }}>›</button>
+                  <button onClick={() => { const p = prevHMonth(hMonth, hYear); setHMonth(p.hMonth); setHYear(p.hYear); }}
+                    style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 40, height: 40, cursor: "pointer", color: "#fff", fontSize: 22 }}>›</button>
                   <div style={{ textAlign: "center" }}>
-                    <div style={{ color: "#fff", fontWeight: 800, fontSize: 22 }}>{HEB_MONTH_NAMES[hMonth]} {hYear}</div>
+                    <div style={{ color: "#fff", fontWeight: 800, fontSize: 22 }}>{HEBREW_MONTHS_NAMES[hMonth]} {hYear}</div>
                     <div style={{ color: "rgba(255,255,255,0.8)", fontSize: 13, marginTop: 2 }}>
-                      {(() => {
-                        try {
-                          const gd = new HDate(1, hMonth, hYear).greg();
-                          return `${GREG_MONTHS[gd.getMonth()]} ${gd.getFullYear()}`;
-                        } catch { return ""; }
-                      })()}
+                      {(() => { try { const gd = new HDate(1, hMonth, hYear).greg(); return `${GREG_MONTHS[gd.getMonth()]} ${gd.getFullYear()}`; } catch { return ""; } })()}
                     </div>
                   </div>
-                  <button onClick={goNextMonth} style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 40, height: 40, cursor: "pointer", color: "#fff", fontSize: 22 }}>‹</button>
+                  <button onClick={() => { const n = nextHMonth(hMonth, hYear); setHMonth(n.hMonth); setHYear(n.hYear); }}
+                    style={{ background: "rgba(255,255,255,0.2)", border: "none", borderRadius: 10, width: 40, height: 40, cursor: "pointer", color: "#fff", fontSize: 22 }}>‹</button>
                 </div>
-
-                {/* Day headers */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", padding: "14px 16px 4px" }}>
                   {HEBREW_DAYS_SHORT.map(d => <div key={d} style={{ textAlign: "center", fontSize: 13, fontWeight: 700, color: "#bbb", padding: "4px 0" }}>{d}</div>)}
                 </div>
-
-                {/* Days grid */}
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", padding: "0 16px 20px", gap: 5 }}>
                   {Array.from({ length: firstDow }).map((_, i) => <div key={"e"+i} />)}
                   {monthDays.map((dayObj) => {
@@ -456,32 +432,13 @@ export default function App() {
                     const isToday = key === todayKey;
                     const isPast = key < todayKey;
                     const isMyVisit = currentUser && dayVisits.find(v => v.id === currentUser.id);
-                    const hLetters = numToHebrew(dayObj.hDay);
-                    const gDay = dayObj.gDate.getDate();
-
                     return (
                       <div key={key} onClick={() => !isPast && handleDayClick(dayObj)}
-                        style={{
-                          minHeight: 76, borderRadius: 14, padding: "6px 5px",
-                          cursor: isPast ? "default" : "pointer",
-                          background: isMyVisit ? COLORS[currentUser.colorIdx].light : isToday ? "#FFF8F0" : "#FAFAFA",
-                          border: isToday ? "2px solid #FF8C42" : isMyVisit ? `2px solid ${COLORS[currentUser.colorIdx].bg}` : "2px solid transparent",
-                          opacity: isPast ? 0.35 : 1,
-                          transition: "all 0.15s",
-                        }}>
-                        {/* תאריך עברי גדול */}
-                        <div style={{ textAlign: "center", fontSize: 16, fontWeight: isToday ? 800 : 700, color: isToday ? "#FF6B35" : "#2D1B00", lineHeight: 1.1 }}>
-                          {hLetters}
-                        </div>
-                        {/* תאריך לועזי קטן */}
-                        <div style={{ textAlign: "center", fontSize: 10, color: "#bbb", marginTop: 1, marginBottom: 3 }}>
-                          {gDay}
-                        </div>
-                        {/* נקודות ביקורים */}
+                        style={{ minHeight: 76, borderRadius: 14, padding: "6px 5px", cursor: isPast ? "default" : "pointer", background: isMyVisit ? COLORS[currentUser.colorIdx].light : isToday ? "#FFF8F0" : "#FAFAFA", border: isToday ? "2px solid #FF8C42" : isMyVisit ? `2px solid ${COLORS[currentUser.colorIdx].bg}` : "2px solid transparent", opacity: isPast ? 0.35 : 1, transition: "all 0.15s" }}>
+                        <div style={{ textAlign: "center", fontSize: 16, fontWeight: isToday ? 800 : 700, color: isToday ? "#FF6B35" : "#2D1B00", lineHeight: 1.1 }}>{numToHebrew(dayObj.hDay)}</div>
+                        <div style={{ textAlign: "center", fontSize: 10, color: "#bbb", marginTop: 1, marginBottom: 3 }}>{dayObj.gDate.getDate()}</div>
                         <div style={{ display: "flex", flexWrap: "wrap", gap: 2, justifyContent: "center" }}>
-                          {dayVisits.slice(0, 4).map((v, vi) => (
-                            <div key={vi} style={{ width: 9, height: 9, borderRadius: "50%", background: COLORS[v.colorIdx]?.bg || "#999", border: "1px solid #fff" }} title={v.name} />
-                          ))}
+                          {dayVisits.slice(0, 4).map((v, vi) => <div key={vi} style={{ width: 9, height: 9, borderRadius: "50%", background: COLORS[v.colorIdx]?.bg || "#999", border: "1px solid #fff" }} title={v.name} />)}
                           {dayVisits.length > 4 && <div style={{ fontSize: 8, color: "#999", fontWeight: 700 }}>+{dayVisits.length-4}</div>}
                         </div>
                       </div>
@@ -489,8 +446,6 @@ export default function App() {
                   })}
                 </div>
               </div>
-
-              {/* Legend */}
               {members.length > 0 && (
                 <div style={{ marginTop: 14, background: "#fff", borderRadius: 16, padding: "12px 20px", boxShadow: "0 2px 15px rgba(0,0,0,0.05)", display: "flex", flexWrap: "wrap", gap: 14, alignItems: "center" }}>
                   <span style={{ fontSize: 13, color: "#888", fontWeight: 600 }}>המשפחה:</span>
@@ -504,7 +459,6 @@ export default function App() {
               )}
             </div>
 
-            {/* Sidebar */}
             <div style={{ flex: "0 0 260px", minWidth: 220 }}>
               <div style={{ background: "#fff", borderRadius: 20, boxShadow: "0 4px 20px rgba(0,0,0,0.06)", padding: 22, marginBottom: 16 }}>
                 <h3 style={{ margin: "0 0 16px", fontSize: 16, color: "#2D1B00", fontWeight: 800 }}>📅 ביקורים קרובים</h3>
@@ -512,12 +466,10 @@ export default function App() {
                 {upcoming.map(([key, vs]) => {
                   const gd = new Date(key);
                   const hd = new HDate(gd);
-                  const hLabel = `${numToHebrew(hd.getDate())} ${HEB_MONTH_NAMES[hd.getMonth()]}`;
-                  const gLabel = `${gd.getDate()}/${gd.getMonth()+1}/${gd.getFullYear()}`;
                   return (
                     <div key={key} style={{ marginBottom: 12, padding: "10px 14px", background: "#FFF8F0", borderRadius: 12, borderRight: "4px solid #FF8C42" }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: "#2D1B00" }}>{hLabel}</div>
-                      <div style={{ fontSize: 11, color: "#bbb", marginBottom: 6 }}>{gLabel}</div>
+                      <div style={{ fontSize: 14, fontWeight: 700, color: "#2D1B00" }}>{numToHebrew(hd.getDate())} {HEBREW_MONTHS_NAMES[hd.getMonth()]}</div>
+                      <div style={{ fontSize: 11, color: "#bbb", marginBottom: 6 }}>{gd.getDate()}/{gd.getMonth()+1}/{gd.getFullYear()}</div>
                       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
                         {vs.map((v, i) => <span key={i} style={{ background: COLORS[v.colorIdx]?.bg || "#999", color: "#fff", borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{v.name}</span>)}
                       </div>
@@ -551,31 +503,23 @@ export default function App() {
                 <div style={{ fontSize: 12, color: "#aaa", marginTop: 2 }}>תזכורת: {m.reminder === "day_before" ? "יום לפני" : m.reminder === "same_day" ? "באותו יום" : "שניהם"} בשעה {m.reminderTime || "09:00"}</div>
               </div>
               <div style={{ textAlign: "center" }}>
-                <div style={{ fontSize: 26, fontWeight: 900, color: COLORS[m.colorIdx]?.bg }}>{Object.entries(visits).filter(([k, vs]) => vs.find(v => v.id === m.id)).length}</div>
+                <div style={{ fontSize: 26, fontWeight: 900, color: COLORS[m.colorIdx]?.bg }}>{Object.entries(visits).filter(([, vs]) => vs.find(v => v.id === m.id)).length}</div>
                 <div style={{ fontSize: 11, color: "#aaa" }}>ביקורים</div>
               </div>
             </div>
           ))}
-          {members.length === 0 && <p style={{ color: "#bbb", textAlign: "center", padding: 40 }}>אין בני משפחה עדיין</p>}
         </div>
       )}
 
-      {/* SETTINGS */}
       {showSettings && currentUser && <SettingsModal user={currentUser} onSave={saveSettings} onClose={() => setShowSettings(false)} />}
 
-      {/* DAY MODAL */}
       {showDayModal && selectedDay && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }} onClick={() => setShowDayModal(false)}>
           <div style={{ background: "#fff", borderRadius: 24, padding: 36, maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
             <div style={{ textAlign: "center", marginBottom: 20 }}>
-              <div style={{ fontSize: 26, fontWeight: 800, color: "#2D1B00" }}>
-                {numToHebrew(selectedDay.hDay)} {HEB_MONTH_NAMES[selectedDay.hDate?.getMonth() ?? hMonth]}
-              </div>
-              <div style={{ fontSize: 14, color: "#bbb", marginTop: 4 }}>
-                {selectedDay.gDate?.getDate()}/{(selectedDay.gDate?.getMonth()||0)+1}/{selectedDay.gDate?.getFullYear()}
-              </div>
+              <div style={{ fontSize: 26, fontWeight: 800, color: "#2D1B00" }}>{numToHebrew(selectedDay.hDay)} {HEBREW_MONTHS_NAMES[selectedDay.hDate?.getMonth() ?? hMonth]}</div>
+              <div style={{ fontSize: 14, color: "#bbb", marginTop: 4 }}>{selectedDay.gDate?.getDate()}/{(selectedDay.gDate?.getMonth()||0)+1}/{selectedDay.gDate?.getFullYear()}</div>
             </div>
-
             {(visits[selectedDay.key] || []).length > 0 && (
               <div style={{ marginBottom: 20 }}>
                 <p style={{ fontSize: 13, color: "#888", marginBottom: 10, fontWeight: 600 }}>מגיעים ביום הזה:</p>
@@ -588,22 +532,17 @@ export default function App() {
                 ))}
               </div>
             )}
-
             {(() => {
               const isIn = (visits[selectedDay.key] || []).find(v => v.id === currentUser?.id);
               return (
                 <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                  <button onClick={() => { toggleVisit(selectedDay.key); setShowDayModal(false); }}
+                  <button onClick={() => toggleVisit(selectedDay.key)}
                     style={{ width: "100%", padding: "14px 20px", background: isIn ? "#FEE2E2" : "linear-gradient(135deg, #FF8C42, #FF6B35)", color: isIn ? "#DC2626" : "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontSize: 16, fontWeight: 700 }}>
                     {isIn ? "❌ הסר את הביקור שלי" : "✅ אני מגיע/ה!"}
                   </button>
                   <a href={buildGoogleCalendarLink(selectedDay.gDate)} target="_blank" rel="noopener noreferrer"
                     style={{ width: "100%", padding: "13px 20px", background: "#fff", color: "#1a73e8", border: "2px solid #1a73e8", borderRadius: 14, cursor: "pointer", fontSize: 15, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}>
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
-                      <rect x="3" y="4" width="18" height="18" rx="2" stroke="#1a73e8" strokeWidth="2"/>
-                      <path d="M16 2v4M8 2v4M3 10h18" stroke="#1a73e8" strokeWidth="2" strokeLinecap="round"/>
-                      <rect x="7" y="14" width="4" height="4" rx="1" fill="#1a73e8"/>
-                    </svg>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="#1a73e8" strokeWidth="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="#1a73e8" strokeWidth="2" strokeLinecap="round"/><rect x="7" y="14" width="4" height="4" rx="1" fill="#1a73e8"/></svg>
                     הוסף ליומן גוגל 📅
                   </a>
                 </div>
@@ -661,6 +600,12 @@ function SettingsModal({ user, onSave, onClose }) {
     </div>
   );
 }
+
+const REMINDER_TIMES = Array.from({ length: 48 }, (_, i) => {
+  const h = String(Math.floor(i / 2)).padStart(2, "0");
+  const m = i % 2 === 0 ? "00" : "30";
+  return `${h}:${m}`;
+});
 
 const inputStyle = { width: "100%", padding: "13px 16px", border: "2px solid #E5E0D8", borderRadius: 12, fontSize: 15, marginBottom: 14, outline: "none", fontFamily: "inherit", background: "#FAFAFA", direction: "rtl" };
 const btnPrimary = { width: "100%", padding: "14px 20px", background: "linear-gradient(135deg, #FF8C42, #FF6B35)", color: "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontSize: 16, fontWeight: 700, marginTop: 8 };
