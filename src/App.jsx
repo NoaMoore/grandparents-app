@@ -5,10 +5,9 @@ import { db, saveVisits, saveMembers, subscribeToVisits, subscribeToMembers } fr
 // ============================================================
 // 🔧 הגדרות EmailJS — החלף את שלושת הערכים האלה בלבד!
 // ============================================================
-const EMAILJS_SERVICE_ID  = "service_XXXXXXX";
-const EMAILJS_TEMPLATE_ID = "template_XXXXXXX";
-const EMAILJS_PUBLIC_KEY  = "XXXXXXXXXXXXXXXXXXXX";
-// ============================================================
+const EMAILJS_SERVICE_ID  = "moore2026!";
+const EMAILJS_TEMPLATE_ID = "template_e8nu0ve";
+const EMAILJS_PUBLIC_KEY  = "MStQyUFQG4G9wZge_";// ============================================================
 
 const FAMILY_CODE = "mishpacha2024";
 
