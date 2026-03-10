@@ -3,9 +3,9 @@ import { useState, useEffect } from "react";
 // ============================================================
 // 🔧 הגדרות EmailJS — החלף את שלושת הערכים האלה בלבד!
 // ============================================================
-const EMAILJS_SERVICE_ID  = "service_XXXXXXX";
-const EMAILJS_TEMPLATE_ID = "template_XXXXXXX";
-const EMAILJS_PUBLIC_KEY  = "XXXXXXXXXXXXXXXXXXXX";
+const EMAILJS_SERVICE_ID  = "moore2026!";
+const EMAILJS_TEMPLATE_ID = "template_e8nu0ve";
+const EMAILJS_PUBLIC_KEY  = "MStQyUFQG4G9wZge_";
 // ============================================================
 
 const FAMILY_CODE = "mishpacha2024";
@@ -24,12 +24,24 @@ const COLORS = [
 const HEBREW_MONTHS = ["ינואר","פברואר","מרץ","אפריל","מאי","יוני","יולי","אוגוסט","ספטמבר","אוקטובר","נובמבר","דצמבר"];
 const HEBREW_DAYS = ["א׳","ב׳","ג׳","ד׳","ה׳","ו׳","ש׳"];
 
-// שעות מ-00:00 עד 23:30 בהפרש של חצי שעה
 const REMINDER_TIMES = Array.from({ length: 48 }, (_, i) => {
   const h = String(Math.floor(i / 2)).padStart(2, "0");
   const m = i % 2 === 0 ? "00" : "30";
   return `${h}:${m}`;
 });
+
+// יוצר לינק להוספה ליומן גוגל
+function buildGoogleCalendarLink(year, month, day) {
+  const date = new Date(year, month, day);
+  const pad = n => String(n).padStart(2, "0");
+  const yy = date.getFullYear();
+  const mm = pad(date.getMonth() + 1);
+  const dd = pad(date.getDate());
+  const dateStr = `${yy}${mm}${dd}`;
+  const title = encodeURIComponent("ביקור אצל סבא וסבתא 💛");
+  const details = encodeURIComponent("ביקור משפחתי אצל סבא וסבתא");
+  return `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${dateStr}/${dateStr}&details=${details}&sf=true&output=xml`;
+}
 
 if (typeof window !== "undefined" && !window.emailjs) {
   const script = document.createElement("script");
@@ -89,62 +101,38 @@ function dkey(y, m, d) {
   return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
-// ===== סבא וסבתא חרדיים — SVG =====
-function CharediGrandparents() {
+function CharediGrandparents({ size = 160 }) {
+  const scale = size / 160;
   return (
-    <svg width="160" height="120" viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
-      {/* סבא */}
-      {/* גוף */}
+    <svg width={160 * scale} height={120 * scale} viewBox="0 0 160 120" fill="none" xmlns="http://www.w3.org/2000/svg">
       <rect x="18" y="62" width="34" height="42" rx="6" fill="#1a1a1a"/>
-      {/* חולצה לבנה */}
       <rect x="24" y="64" width="22" height="30" rx="3" fill="white"/>
-      {/* עניבה */}
       <polygon points="35,66 33,72 35,76 37,72" fill="#8B0000"/>
-      {/* ראש */}
       <circle cx="35" cy="50" r="14" fill="#F5CBA7"/>
-      {/* כובע שחור */}
       <ellipse cx="35" cy="37" rx="18" ry="4" fill="#1a1a1a"/>
       <rect x="27" y="30" width="16" height="10" rx="3" fill="#1a1a1a"/>
-      {/* פאות */}
       <path d="M21 50 Q17 55 19 62" stroke="#8B6914" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
       <path d="M49 50 Q53 55 51 62" stroke="#8B6914" strokeWidth="2.5" fill="none" strokeLinecap="round"/>
-      {/* זקן */}
       <path d="M25 58 Q35 68 45 58 Q42 72 35 74 Q28 72 25 58Z" fill="#d4b896" opacity="0.8"/>
-      {/* עיניים */}
       <circle cx="30" cy="50" r="2" fill="#4a3728"/>
       <circle cx="40" cy="50" r="2" fill="#4a3728"/>
-      {/* חיוך */}
       <path d="M30 57 Q35 61 40 57" stroke="#c0906a" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      {/* ידיים */}
       <rect x="8" y="65" width="10" height="6" rx="3" fill="#1a1a1a"/>
       <rect x="52" y="65" width="10" height="6" rx="3" fill="#1a1a1a"/>
-
-      {/* סבתא */}
-      {/* גוף */}
       <rect x="108" y="62" width="34" height="42" rx="6" fill="#2c4a6e"/>
-      {/* סינר / שמלה */}
       <path d="M112 75 Q125 72 138 75 L140 104 Q125 106 110 104Z" fill="#3a5f8a" opacity="0.5"/>
-      {/* ראש */}
       <circle cx="125" cy="50" r="14" fill="#F5CBA7"/>
-      {/* מטפחת */}
       <path d="M111 47 Q125 35 139 47 Q137 38 125 36 Q113 38 111 47Z" fill="#8B0000"/>
       <rect x="111" y="45" width="28" height="8" rx="2" fill="#8B0000"/>
-      {/* שיער קצת נראה */}
       <path d="M113 50 Q111 55 113 60" stroke="#5a3a1a" strokeWidth="2" fill="none"/>
       <path d="M137 50 Q139 55 137 60" stroke="#5a3a1a" strokeWidth="2" fill="none"/>
-      {/* עיניים */}
       <circle cx="120" cy="50" r="2" fill="#4a3728"/>
       <circle cx="130" cy="50" r="2" fill="#4a3728"/>
-      {/* חיוך */}
       <path d="M120 57 Q125 62 130 57" stroke="#c0906a" strokeWidth="1.5" fill="none" strokeLinecap="round"/>
-      {/* לחיים ורודות */}
       <circle cx="117" cy="54" r="3" fill="#FFB6C1" opacity="0.5"/>
       <circle cx="133" cy="54" r="3" fill="#FFB6C1" opacity="0.5"/>
-      {/* ידיים */}
       <rect x="98" y="65" width="10" height="6" rx="3" fill="#2c4a6e"/>
       <rect x="142" y="65" width="10" height="6" rx="3" fill="#2c4a6e"/>
-
-      {/* לב ביניהם */}
       <text x="72" y="90" fontSize="18" textAnchor="middle">💛</text>
     </svg>
   );
@@ -152,7 +140,7 @@ function CharediGrandparents() {
 
 export default function App() {
   const today = new Date();
-  const [view, setView] = useState("welcome"); // welcome | register | login | calendar | members
+  const [view, setView] = useState("welcome");
   const [currentUser, setCurrentUser] = useState(null);
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
@@ -248,7 +236,6 @@ export default function App() {
         return { ...prev, [key]: [...existing, { id: currentUser.id, name: currentUser.name, colorIdx: currentUser.colorIdx }] };
       }
     });
-    setShowDayModal(false);
   }
 
   const daysInMonth = getDaysInMonth(year, month);
@@ -262,7 +249,7 @@ export default function App() {
         <div style={{ position: "fixed", top: 24, left: "50%", transform: "translateX(-50%)", background: toast.type === "success" ? "#4CAF50" : "#2196F3", color: "#fff", padding: "12px 28px", borderRadius: 40, zIndex: 9999, fontWeight: 600, fontSize: 15, boxShadow: "0 4px 20px rgba(0,0,0,0.15)", whiteSpace: "nowrap" }}>{toast.msg}</div>
       )}
 
-      {/* ===== WELCOME ===== */}
+      {/* WELCOME */}
       {view === "welcome" && (
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "#fff", borderRadius: 28, padding: "48px 56px", boxShadow: "0 8px 60px rgba(255,140,60,0.13)", width: "100%", maxWidth: 480, textAlign: "center" }}>
@@ -271,7 +258,6 @@ export default function App() {
             </div>
             <h1 style={{ fontSize: 30, fontWeight: 800, color: "#2D1B00", margin: "0 0 8px" }}>ביקורים אצל סבא וסבתא</h1>
             <p style={{ color: "#999", fontSize: 15, marginBottom: 36 }}>תכנון ביקורים משפחתי משותף 💛</p>
-
             {!codeOk ? (
               <div>
                 <p style={{ fontSize: 14, color: "#666", marginBottom: 14 }}>הזן את קוד הגישה המשפחתי</p>
@@ -284,19 +270,15 @@ export default function App() {
               </div>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                <button onClick={() => setView("register")} style={btnPrimary}>
-                  👤 הרשמה ראשונית
-                </button>
-                <button onClick={() => { setLoginName(""); setLoginError(""); setView("login"); }} style={btnSecondary}>
-                  🔑 כבר נרשמתי — כניסה
-                </button>
+                <button onClick={() => setView("register")} style={btnPrimary}>👤 הרשמה ראשונית</button>
+                <button onClick={() => { setLoginName(""); setLoginError(""); setView("login"); }} style={btnSecondary}>🔑 כבר נרשמתי — כניסה</button>
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* ===== REGISTER ===== */}
+      {/* REGISTER */}
       {view === "register" && (
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "#fff", borderRadius: 28, padding: "44px 52px", boxShadow: "0 8px 60px rgba(255,140,60,0.13)", width: "100%", maxWidth: 540 }}>
@@ -306,20 +288,14 @@ export default function App() {
               <h2 style={{ fontSize: 26, fontWeight: 800, color: "#2D1B00", margin: 0 }}>הרשמה ראשונית</h2>
               <p style={{ color: "#999", fontSize: 14, margin: "6px 0 0" }}>מלא פעם אחת — ותמיד תיכנס בקלות</p>
             </div>
-
             <label style={labelStyle}>שם מלא *</label>
-            <input style={inputStyle} placeholder="שם פרטי ומשפחה"
-              value={regForm.name} onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))} />
-
+            <input style={inputStyle} placeholder="שם פרטי ומשפחה" value={regForm.name} onChange={e => setRegForm(p => ({ ...p, name: e.target.value }))} />
             <label style={labelStyle}>אימייל (לתזכורות)</label>
-            <input style={inputStyle} type="email" placeholder="your@email.com"
-              value={regForm.email} onChange={e => setRegForm(p => ({ ...p, email: e.target.value }))} />
-
+            <input style={inputStyle} type="email" placeholder="your@email.com" value={regForm.email} onChange={e => setRegForm(p => ({ ...p, email: e.target.value }))} />
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               <div>
                 <label style={labelStyle}>מתי לשלוח תזכורת?</label>
-                <select style={inputStyle} value={regForm.reminder}
-                  onChange={e => setRegForm(p => ({ ...p, reminder: e.target.value }))}>
+                <select style={inputStyle} value={regForm.reminder} onChange={e => setRegForm(p => ({ ...p, reminder: e.target.value }))}>
                   <option value="day_before">יום לפני</option>
                   <option value="same_day">באותו יום</option>
                   <option value="both">שניהם</option>
@@ -327,13 +303,11 @@ export default function App() {
               </div>
               <div>
                 <label style={labelStyle}>באיזו שעה?</label>
-                <select style={inputStyle} value={regForm.reminderTime}
-                  onChange={e => setRegForm(p => ({ ...p, reminderTime: e.target.value }))}>
+                <select style={inputStyle} value={regForm.reminderTime} onChange={e => setRegForm(p => ({ ...p, reminderTime: e.target.value }))}>
                   {REMINDER_TIMES.map(t => <option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
             </div>
-
             <label style={labelStyle}>צבע שלך בלוח</label>
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap", marginBottom: 24 }}>
               {COLORS.map((c, i) => (
@@ -341,21 +315,16 @@ export default function App() {
                   style={{ width: 36, height: 36, borderRadius: "50%", background: c.bg, cursor: "pointer", border: regForm.color === i ? "3px solid #2D1B00" : "3px solid transparent", boxShadow: regForm.color === i ? `0 0 0 2px #fff, 0 0 0 4px ${c.bg}` : "none", transition: "all 0.2s" }} />
               ))}
             </div>
-
-            <button onClick={handleRegister} style={{ ...btnPrimary, opacity: regForm.name.trim() ? 1 : 0.5 }}>
-              הירשם 🎉
-            </button>
-
+            <button onClick={handleRegister} style={{ ...btnPrimary, opacity: regForm.name.trim() ? 1 : 0.5 }}>הירשם 🎉</button>
             <p style={{ textAlign: "center", marginTop: 16, fontSize: 13, color: "#aaa" }}>
               כבר נרשמת?{" "}
-              <span onClick={() => { setLoginName(""); setLoginError(""); setView("login"); }}
-                style={{ color: "#FF6B35", cursor: "pointer", fontWeight: 700 }}>לחץ כאן לכניסה</span>
+              <span onClick={() => { setLoginName(""); setLoginError(""); setView("login"); }} style={{ color: "#FF6B35", cursor: "pointer", fontWeight: 700 }}>לחץ כאן לכניסה</span>
             </p>
           </div>
         </div>
       )}
 
-      {/* ===== LOGIN ===== */}
+      {/* LOGIN */}
       {view === "login" && (
         <div style={{ minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", padding: 20 }}>
           <div style={{ background: "#fff", borderRadius: 28, padding: "44px 52px", boxShadow: "0 8px 60px rgba(255,140,60,0.13)", width: "100%", maxWidth: 420, textAlign: "center" }}>
@@ -363,30 +332,23 @@ export default function App() {
             <div style={{ fontSize: 52, marginBottom: 12 }}>🔑</div>
             <h2 style={{ fontSize: 26, fontWeight: 800, color: "#2D1B00", margin: "0 0 8px" }}>כניסה</h2>
             <p style={{ color: "#999", fontSize: 14, marginBottom: 28 }}>הכנס את שמך כפי שנרשמת</p>
-
             <div style={{ textAlign: "right" }}>
               <label style={labelStyle}>שם מלא</label>
-              <input style={inputStyle} placeholder="שם פרטי ומשפחה"
-                value={loginName}
+              <input style={inputStyle} placeholder="שם פרטי ומשפחה" value={loginName}
                 onChange={e => { setLoginName(e.target.value); setLoginError(""); }}
                 onKeyDown={e => e.key === "Enter" && handleLogin()} />
               {loginError && <p style={{ color: "#f44336", fontSize: 13, margin: "-8px 0 12px" }}>{loginError}</p>}
             </div>
-
-            <button onClick={handleLogin} style={{ ...btnPrimary, opacity: loginName.trim() ? 1 : 0.5 }}>
-              כניסה ←
-            </button>
-
+            <button onClick={handleLogin} style={{ ...btnPrimary, opacity: loginName.trim() ? 1 : 0.5 }}>כניסה ←</button>
             <p style={{ marginTop: 16, fontSize: 13, color: "#aaa" }}>
               עוד לא נרשמת?{" "}
-              <span onClick={() => setView("register")}
-                style={{ color: "#FF6B35", cursor: "pointer", fontWeight: 700 }}>לחץ כאן להרשמה</span>
+              <span onClick={() => setView("register")} style={{ color: "#FF6B35", cursor: "pointer", fontWeight: 700 }}>לחץ כאן להרשמה</span>
             </p>
           </div>
         </div>
       )}
 
-      {/* ===== CALENDAR ===== */}
+      {/* CALENDAR */}
       {view === "calendar" && (
         <div style={{ padding: "24px 32px", maxWidth: 1300, margin: "0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 28, flexWrap: "wrap", gap: 12 }}>
@@ -479,7 +441,7 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== MEMBERS ===== */}
+      {/* MEMBERS */}
       {view === "members" && (
         <div style={{ padding: "24px 32px", maxWidth: 700, margin: "0 auto" }}>
           <button onClick={() => setView("calendar")} style={{ background: "none", border: "none", cursor: "pointer", color: "#FF6B35", fontSize: 16, fontWeight: 700, marginBottom: 20, padding: 0 }}>← חזרה ללוח</button>
@@ -504,17 +466,18 @@ export default function App() {
         </div>
       )}
 
-      {/* ===== SETTINGS MODAL ===== */}
+      {/* SETTINGS MODAL */}
       {showSettings && currentUser && (
         <SettingsModal user={currentUser} onSave={saveSettings} onClose={() => setShowSettings(false)} />
       )}
 
-      {/* ===== DAY MODAL ===== */}
+      {/* DAY MODAL */}
       {showDayModal && selectedDay && (
         <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.4)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }} onClick={() => setShowDayModal(false)}>
-          <div style={{ background: "#fff", borderRadius: 24, padding: 36, maxWidth: 400, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: "#fff", borderRadius: 24, padding: 36, maxWidth: 420, width: "100%", boxShadow: "0 20px 60px rgba(0,0,0,0.2)" }} onClick={e => e.stopPropagation()}>
             <h3 style={{ margin: "0 0 6px", fontSize: 24, fontWeight: 800, color: "#2D1B00", textAlign: "center" }}>{selectedDay.day} {HEBREW_MONTHS[month]} {year}</h3>
             <p style={{ textAlign: "center", color: "#999", margin: "0 0 24px", fontSize: 14 }}>מי מגיע?</p>
+
             {(visits[selectedDay.key] || []).length > 0 && (
               <div style={{ marginBottom: 20 }}>
                 <p style={{ fontSize: 13, color: "#888", marginBottom: 10, fontWeight: 600 }}>מגיעים ביום הזה:</p>
@@ -527,14 +490,32 @@ export default function App() {
                 ))}
               </div>
             )}
+
             {(() => {
               const isIn = (visits[selectedDay.key] || []).find(v => v.id === currentUser?.id);
               return (
-                <button onClick={() => toggleVisit(selectedDay.key)} style={{ width: "100%", padding: "14px 20px", background: isIn ? "#FEE2E2" : "linear-gradient(135deg, #FF8C42, #FF6B35)", color: isIn ? "#DC2626" : "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontSize: 16, fontWeight: 700 }}>
-                  {isIn ? "❌ הסר את הביקור שלי" : "✅ אני מגיע/ה!"}
-                </button>
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <button onClick={() => { toggleVisit(selectedDay.key); }} style={{ width: "100%", padding: "14px 20px", background: isIn ? "#FEE2E2" : "linear-gradient(135deg, #FF8C42, #FF6B35)", color: isIn ? "#DC2626" : "#fff", border: "none", borderRadius: 14, cursor: "pointer", fontSize: 16, fontWeight: 700 }}>
+                    {isIn ? "❌ הסר את הביקור שלי" : "✅ אני מגיע/ה!"}
+                  </button>
+
+                  {/* כפתור יומן גוגל — מופיע תמיד */}
+                  <a
+                    href={buildGoogleCalendarLink(year, month, selectedDay.day)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ width: "100%", padding: "13px 20px", background: "#fff", color: "#1a73e8", border: "2px solid #1a73e8", borderRadius: 14, cursor: "pointer", fontSize: 15, fontWeight: 700, textDecoration: "none", display: "flex", alignItems: "center", justifyContent: "center", gap: 8, boxSizing: "border-box" }}>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
+                      <rect x="3" y="4" width="18" height="18" rx="2" stroke="#1a73e8" strokeWidth="2"/>
+                      <path d="M16 2v4M8 2v4M3 10h18" stroke="#1a73e8" strokeWidth="2" strokeLinecap="round"/>
+                      <rect x="7" y="14" width="4" height="4" rx="1" fill="#1a73e8"/>
+                    </svg>
+                    הוסף ליומן גוגל 📅
+                  </a>
+                </div>
               );
             })()}
+
             <button onClick={() => setShowDayModal(false)} style={{ width: "100%", padding: "10px", marginTop: 8, background: "transparent", border: "none", cursor: "pointer", color: "#aaa", fontSize: 14 }}>סגור</button>
           </div>
         </div>
@@ -560,8 +541,7 @@ function SettingsModal({ user, onSave, onClose }) {
           <strong style={{ color: "#2D1B00" }}>שם:</strong> {user.name}
         </div>
         <label style={labelStyle}>אימייל</label>
-        <input style={inputStyle} type="email" value={form.email}
-          onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" />
+        <input style={inputStyle} type="email" value={form.email} onChange={e => setForm(p => ({ ...p, email: e.target.value }))} placeholder="your@email.com" />
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
           <div>
             <label style={labelStyle}>מתי לשלוח תזכורת?</label>
