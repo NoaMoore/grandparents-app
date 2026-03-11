@@ -1,6 +1,6 @@
 // src/firebase.js
 import { initializeApp } from "firebase/app";
-import { getFirestore, doc, setDoc, getDoc, onSnapshot, collection } from "firebase/firestore";
+import { getFirestore, doc, setDoc, onSnapshot, deleteDoc, getDoc } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBMs6twFJLo_2L30-aovTI0fM_Y2NClwB4",
@@ -14,19 +14,40 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 export const db = getFirestore(app);
 
-// ===== פונקציות עזר =====
-
-// שמור ביקורים
 export async function saveVisits(visits) {
   await setDoc(doc(db, "app", "visits"), { data: JSON.stringify(visits) });
 }
 
-// שמור משתמשים
 export async function saveMembers(members) {
   await setDoc(doc(db, "app", "members"), { data: JSON.stringify(members) });
 }
 
-// האזן לשינויים בזמן אמת
+export async function getMembers() {
+  const snap = await getDoc(doc(db, "app", "members"));
+  if (!snap.exists()) return [];
+  try { return JSON.parse(snap.data().data); } catch { return []; }
+}
+
+// שמור OTP זמני (פג תוקף אחרי 10 דקות)
+export async function saveOTP(email, code) {
+  await setDoc(doc(db, "otps", email.toLowerCase().replace(/[.]/g, "_")), {
+    code,
+    email,
+    createdAt: Date.now(),
+  });
+}
+
+export async function verifyOTP(email, code) {
+  const key = email.toLowerCase().replace(/[.]/g, "_");
+  const snap = await getDoc(doc(db, "otps", key));
+  if (!snap.exists()) return false;
+  const data = snap.data();
+  const expired = Date.now() - data.createdAt > 10 * 60 * 1000;
+  if (expired || data.code !== code) return false;
+  await deleteDoc(doc(db, "otps", key));
+  return true;
+}
+
 export function subscribeToVisits(callback) {
   return onSnapshot(doc(db, "app", "visits"), (snap) => {
     if (snap.exists()) {
